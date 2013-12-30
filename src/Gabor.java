@@ -279,10 +279,7 @@ private int Frequency(int[][] vimage, double[] fDirection, double[] fFrequency,i
 
 
 
-
-
-
-
-
+public static String GitTest(){
+	return "hello git";
 
 }

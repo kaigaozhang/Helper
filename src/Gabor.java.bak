@@ -1,0 +1,289 @@
+
+public class Gabor {
+	int lWidth = 256;
+	int lHeight = 256;
+	int		SIZE_L =	32;
+	int			SIZE_W =	16;
+	int		SIZE_L2 =	16;
+	int			SIZE_W2 = 	8;
+  public int[][] ImageEnhance(int[][] vimage,double[] fDirection){
+	  double	[] frequency = new double[lWidth * lHeight];
+	  int[][] ucImgEnhanced = new int[lWidth][lHeight];
+		//memset(ucImgEnhanced, 0, lWidth * lHeight);
+
+		if(Frequency(vimage, fDirection, frequency, lWidth, lHeight) < 0)
+			return null;
+
+		int[] mask	= new int[lWidth * lHeight];
+
+		GetMask(vimage, fDirection, frequency, mask, lWidth, lHeight);
+
+		return Enhance(vimage, fDirection, frequency, mask, ucImgEnhanced, lWidth, lHeight);
+	
+  }
+  
+  
+  
+  
+  
+  
+  
+  
+  
+private int[][] Enhance(int[][] vimage, double[] fDirection, double[] fFrequency,int[] ucMask, int[][] ucImgEnhanced, int lWidth2, int lHeight2) {
+	// TODO Auto-generated method stub
+	int	i,j,u,v;
+	int		wg2 = 5;	// Gabor filter size is 11*11
+	
+	double	sum,f,o;
+	//memset(ucImgEnhanced, 0, lWidth*lHeight);
+
+   double	x2, y2, dx2, dy2;
+
+	dy2 = 1.0/(4.0*4.0);
+	dx2 = 1.0/(4.0*4.0);
+
+	for(j=wg2; j<lHeight-wg2; j++)
+	{
+		for (i = wg2; i < lWidth-wg2; i++)
+		{
+			if(ucMask[i+j*lWidth] == 0)
+				continue;
+
+			sum		= 0.0;
+			o = fDirection[i+j*lWidth];
+			f = fFrequency[i+j*lWidth];
+			o += 3.1415926535897932384626433832795/2;
+			for (v = -wg2; v <= wg2; v++)
+			for (u = -wg2; u <= wg2; u++)
+			{
+				//EnhanceGabor((FvsFloat_t)u,(FvsFloat_t)v,o,f)
+				//EnhanceGabor(FvsFloat_t x, FvsFloat_t y, FvsFloat_t phi, FvsFloat_t f)
+				x2 = -u*Math.sin(o) + v*Math.cos(o);
+				y2 =  u*Math.cos(o) + v*Math.sin(o);                                                          //ucImg[(i-u)+(j-v)*lWidth]
+				sum += Math.exp(-0.5*(x2*x2*dx2 + y2*y2*dy2))*Math.cos(2*3.1415926535897932384626433832795*x2*f)*vimage[j-v][i-u];;
+			}
+
+			if (sum>255.0)
+				sum = 255.0;
+			if (sum<0.0)
+				sum = 0.0;
+			ucImgEnhanced[j][i] = (int)sum;
+		}
+	}
+           return ucImgEnhanced;
+}
+
+
+
+
+
+
+
+
+
+private void GetMask(int[][] vimage, double[] fDirection, double[] fFrequency,int[] ucMask, int lWidth2, int lHeight2) {
+	// TODO Auto-generated method stub
+	double	freqMin	= 1.0/25.0;
+	double	freqMax = 1.0/3.0;
+	int	x,y,k;
+	int	pos,posout;
+
+	//memset(ucMask, 0, lWidth*lHeight);
+
+    for (y = 0; y < lHeight; y++)
+	{
+        for (x = 0; x < lWidth; x++)
+        {
+            pos    = x + y * lWidth;
+            posout = x + y * lWidth;
+            ucMask[posout] = 0;
+            if (fFrequency[pos] >= freqMin && fFrequency[pos] <= freqMax)
+            {
+                ucMask[posout] = 255;
+            }
+        }
+	}
+
+    /* fill in the holes */
+    for (k = 0; k < 4; k++)
+	{
+		for (y=1; y<lHeight-1; y++)
+		for (x=1; x<lWidth-1; x++)
+		{
+			if (ucMask[x + y*lWidth]==0xFF)
+			{
+				ucMask[x-1 + y*lWidth] |= 0x80;
+				ucMask[x+1 + y*lWidth] |= 0x80;
+				ucMask[x + (y-1)*lWidth] |= 0x80;
+				ucMask[x + (y+1)*lWidth] |= 0x80;
+			}
+		}
+
+		for (y=1; y<lHeight-1; y++)
+		for (x=1; x<lWidth-1; x++)
+		{
+			if (ucMask[x + y*lWidth]>0)
+				ucMask[x + y*lWidth] = 0xFF;
+		}
+	}
+
+    /* remove borders */
+    for (k = 0; k < 12; k++)
+	{
+		for (y=1; y<lHeight-1; y++)
+		for (x=1; x<lWidth-1; x++)
+		{
+			if (ucMask[x + y*lWidth]==0x0)
+			{
+				ucMask[x-1 + y*lWidth] &= 0x80;
+				ucMask[x+1 + y*lWidth] &= 0x80;
+				ucMask[x + (y-1)*lWidth] &= 0x80;
+				ucMask[x + (y+1)*lWidth] &= 0x80;
+			}
+		}
+
+		for (y=1; y<lHeight-1; y++)
+		for (x=1; x<lWidth-1; x++)
+		{
+			if (ucMask[x + y*lWidth]!=0xFF)
+				ucMask[x + y*lWidth] = 0x0;
+		}
+	}
+}
+
+
+
+
+
+
+
+
+
+private int Frequency(int[][] vimage, double[] fDirection, double[] fFrequency,int lWidth2, int lHeight2) {
+	int	[]	peak_pos = new int[SIZE_L];
+	int		peak_cnt;
+	double	peak_freq;
+	double[]	Xsig = new double[SIZE_L];
+	float	pmin, pmax;
+
+	// directions
+    double	dir = 0.0;
+    double	cosdir = 0.0;
+    double	sindir = 0.0;
+    double	maxPeak, minPeak;
+
+	double []frequency1 = new double[lWidth*lHeight];
+
+	//memset(fFrequency, 0, sizeof(float)*lWidth*lHeight);
+	//memset(frequency1, 0, sizeof(float)*lWidth*lHeight);
+
+	int	x,y;
+	int	d,k;
+	long	u,v;
+
+	for(y=SIZE_L2; y<lHeight-SIZE_L2; y++)
+	{
+		for(x=SIZE_L2; x<lWidth-SIZE_L2; x++)
+		{
+			dir		= fDirection[(y+SIZE_W2)*lWidth + (x+SIZE_W2)];
+			cosdir	= -Math.sin(dir);
+			sindir	= Math.cos(dir);
+
+			//	calc the x-signature X[0]...X[L-1]
+			for(k=0; k<SIZE_L; k++)
+			{
+				Xsig[k] = 0.0;
+				for(d=0; d<SIZE_W; d++)
+				{
+					u = (long)(x + (d-SIZE_W2)*cosdir + (k-SIZE_L2)*sindir);
+					v = (long)(y + (d-SIZE_W2)*sindir - (k-SIZE_L2)*cosdir);
+					// never over the edge
+					if(u<0)
+						u =0;
+					else if(u>lWidth-1)
+						u = lWidth-1;
+					if(v<0)
+						v = 0;
+					else if(v>lHeight-1)
+						v = lHeight-1;
+
+					//Xsig[k] += ucImg[u+v*lWidth];
+					Xsig[k] += vimage[(int)v][(int)u];
+					
+				}
+				Xsig[k] /= SIZE_W;
+			}
+
+			// here, we have got the SIN wave
+
+			// see if the wave exists, max and min value should have a range
+			maxPeak = minPeak = Xsig[0];
+			for(k=0; k<SIZE_L; k++)
+			{
+				if(minPeak>Xsig[k])
+					minPeak	= Xsig[k];
+				if(maxPeak<Xsig[k])
+					maxPeak	= Xsig[k];
+			}
+
+			peak_cnt	= 0;
+			if((maxPeak - minPeak)>64)
+			{
+				for(k=1; k<SIZE_L-1; k++)
+				{
+					if((Xsig[k-1] < Xsig[k]) && (Xsig[k] >= Xsig[k+1])) // asdqw
+						peak_pos[peak_cnt++] = k;
+				}
+			}
+
+			// mean peak
+			peak_freq	= 0.0;
+			if(peak_cnt>=2)
+			{
+				for(k=0; k<peak_cnt-1; k++)
+				{
+					peak_freq	+= (peak_pos[k+1] - peak_pos[k]);
+				}
+				peak_freq	/= peak_cnt-1;
+			}
+			// peak frequency should be limited
+			if(peak_freq<3.0 || peak_freq>25.0)
+				frequency1[x+y*lWidth] = 0.0;
+			else
+				frequency1[x+y*lWidth] = 1.0/peak_freq;
+		}
+	}
+
+	// mean filter for the frequency
+	for(y=SIZE_L2; y<lHeight-SIZE_L2; y++)
+	{
+		for(x=SIZE_L2; x<lWidth-SIZE_L2; x++)
+		{
+			k = x+y*lWidth;
+			peak_freq = 0.0;
+			for(v=-2; v<=2; v++)
+			{
+				for(u=-2; u<=2; u++)
+				{
+					peak_freq	+= frequency1[(int)((x+u)+(y+v)*lWidth)];
+				}
+			}
+			fFrequency[k] = peak_freq/25;
+		}
+	}
+	return 0;
+}
+
+
+
+
+
+public static String GitTest(){
+	return "hello git";
+
+
+
+
+
+}
